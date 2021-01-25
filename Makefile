@@ -22,10 +22,13 @@ GOARCH ?= $(shell go env GOARCH)
 REGISTRY ?= gcr.io/$(shell gcloud config get-value project)
 STAGING_REGISTRY := gcr.io/k8s-staging-kas-network-proxy
 
-SERVER_IMAGE_NAME ?= proxy-server
-AGENT_IMAGE_NAME ?= proxy-agent
-TEST_CLIENT_IMAGE_NAME ?= proxy-test-client
+SERVER_IMAGE_NAME ?= tke-anp-server
+AGENT_IMAGE_NAME ?= tke-anp-agent
+TEST_CLIENT_IMAGE_NAME ?= tke-anp-test-client
 TEST_SERVER_IMAGE_NAME ?= http-test-server
+
+REQ_CN ?= 132.232.31.102
+#REQ_CN ?= 49.51.49.223
 
 SERVER_FULL_IMAGE ?= $(REGISTRY)/$(SERVER_IMAGE_NAME)
 AGENT_FULL_IMAGE ?= $(REGISTRY)/$(AGENT_IMAGE_NAME)
@@ -125,8 +128,8 @@ certs: easy-rsa-master cfssl cfssljson
 	# create the client <-> server-proxy connection certs
 	cd easy-rsa-master/master; \
 	./easyrsa init-pki; \
-	./easyrsa --batch "--req-cn=127.0.0.1@$(date +%s)" build-ca nopass; \
-	./easyrsa --subject-alt-name="DNS:kubernetes,DNS:localhost,IP:127.0.0.1" build-server-full "proxy-master" nopass; \
+	./easyrsa --batch "--req-cn=${REQ_CN}@$(date +%s)" build-ca nopass; \
+	./easyrsa --subject-alt-name="DNS:kubernetes,DNS:localhost,IP:${REQ_CN}" build-server-full "proxy-master" nopass; \
 	./easyrsa build-client-full proxy-client nopass; \
 	echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment","client auth"]}}}' > "ca-config.json"; \
 	echo '{"CN":"proxy","names":[{"O":"system:nodes"}],"hosts":[""],"key":{"algo":"rsa","size":2048}}' | cfssl gencert -ca=pki/ca.crt -ca-key=pki/private/ca.key -config=ca-config.json - | cfssljson -bare proxy
@@ -137,8 +140,8 @@ certs: easy-rsa-master cfssl cfssljson
 	# create the agent <-> server-proxy connection certs
 	cd easy-rsa-master/agent; \
 	./easyrsa init-pki; \
-	./easyrsa --batch "--req-cn=127.0.0.1@$(date +%s)" build-ca nopass; \
-	./easyrsa --subject-alt-name="DNS:kubernetes,DNS:localhost,IP:127.0.0.1" build-server-full "proxy-master" nopass; \
+	./easyrsa --batch "--req-cn=${REQ_CN}@$(date +%s)" build-ca nopass; \
+	./easyrsa --subject-alt-name="DNS:kubernetes,DNS:localhost,IP:${REQ_CN}" build-server-full "proxy-master" nopass; \
 	./easyrsa build-client-full proxy-agent nopass; \
 	echo '{"signing":{"default":{"expiry":"43800h","usages":["signing","key encipherment","agent auth"]}}}' > "ca-config.json"; \
 	echo '{"CN":"proxy","names":[{"O":"system:nodes"}],"hosts":[""],"key":{"algo":"rsa","size":2048}}' | cfssl gencert -ca=pki/ca.crt -ca-key=pki/private/ca.key -config=ca-config.json - | cfssljson -bare proxy
